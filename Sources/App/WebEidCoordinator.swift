@@ -2,7 +2,6 @@
 
 #if os(macOS)
 
-  import AppKit
   import CardCore
   import Foundation
   import notify
@@ -30,6 +29,8 @@
     private let store = WebEidBridgeStore.shared
     private var notificationToken: Int32 = Constants.uninitializedToken
     private var activeNonce: UUID?
+    private var activeExpiresAt: Date?
+    private var activeDelivered = false
     private var activeTask: Task<Void, Never>?
     private var fallbackPollTask: Task<Void, Never>?
     private var started = false
@@ -64,11 +65,19 @@
     }
 
     /// Cancels any active Web eID ceremony immediately (for example on app quit)
-    /// so Safari receives `ERR_WEBEID_USER_CANCELLED` rather than hanging.
+    /// and synchronously delivers `ERR_WEBEID_USER_CANCELLED` to Safari before
+    /// aborting any active Web eID alert.
     internal func cancelActiveRequest() {
-      guard activeNonce != nil else { return }
+      guard let nonce = activeNonce, let expiresAt = activeExpiresAt else { return }
       activeCancelled = true
-      NSApp.abortModal()
+      if !activeDelivered {
+        activeDelivered = true
+        deliver(
+          WebEidBridgeResponse(nonce: nonce, error: Self.cancelledError),
+          expiresAt: expiresAt
+        )
+      }
+      WebEidNativeAlert.abortActiveAlert()
     }
 
     internal func deliver(_ response: WebEidBridgeResponse, expiresAt: Date) {
@@ -124,7 +133,10 @@
     }
 
     private func beginCeremony(for request: WebEidBridgeRequest) {
+      guard activeNonce == nil else { return }
       activeNonce = request.nonce
+      activeExpiresAt = request.expiresAt
+      activeDelivered = false
       activeCancelled = false
       activeTask = Task { [weak self] in
         guard let self else { return }
@@ -139,18 +151,23 @@
       result: Result<WebEidResponsePayload, WebEidError>
     ) {
       guard activeNonce == nonce else { return }
+      let alreadyDelivered = activeDelivered
       activeNonce = nil
+      activeExpiresAt = nil
+      activeDelivered = false
       activeCancelled = false
       activeTask = nil
-      let response: WebEidBridgeResponse =
-        switch result {
-        case .success(let payload):
-          WebEidBridgeResponse(nonce: nonce, payload: payload)
+      if !alreadyDelivered {
+        let response: WebEidBridgeResponse =
+          switch result {
+          case .success(let payload):
+            WebEidBridgeResponse(nonce: nonce, payload: payload)
 
-        case .failure(let error):
-          WebEidBridgeResponse(nonce: nonce, error: error)
-        }
-      deliver(response, expiresAt: expiresAt)
+          case .failure(let error):
+            WebEidBridgeResponse(nonce: nonce, error: error)
+          }
+        deliver(response, expiresAt: expiresAt)
+      }
       drainPendingRequests()
     }
   }

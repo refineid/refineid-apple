@@ -11,14 +11,16 @@
   ///
   /// Uses a plain masked `NSSecureTextField` with no reveal toggle so PIN 1
   /// and PIN 2 are never shown in clear text, wipes the field immediately on
-  /// dismissal, and aborts automatically at the browser request's deadline.
+  /// dismissal or card removal, and aborts only its own modal window at the
+  /// browser request's deadline.
   @MainActor
   internal enum WebEidNativeAlert {
     // MARK: Nested Types
 
-    private enum Layout {
-      static let fieldWidth: CGFloat = 240
-      static let fieldHeight: CGFloat = 24
+    internal enum Layout {
+      internal static let fieldWidth: CGFloat = 240
+      internal static let fieldHeight: CGFloat = 24
+      internal static let abortRetryIntervalSeconds: TimeInterval = 0.1
     }
 
     internal enum ConfirmOutcome: Equatable {
@@ -29,11 +31,13 @@
 
     internal enum PinOutcome: Equatable {
       case cancelled
+      case cardRemoved
       case entered(String)
       case timedOut
     }
 
-    private enum ModalOutcome {
+    internal enum ModalOutcome {
+      case cardRemoved
       case firstButton
       case other
       case timedOut
@@ -59,6 +63,14 @@
       internal let expiresAt: Date
     }
 
+    /// Options governing one modal alert run.
+    internal struct ModalOptions {
+      internal let field: NSSecureTextField?
+      internal let confirmButton: NSButton?
+      internal let observeCardRemoval: Bool
+      internal let expiresAt: Date
+    }
+
     /// Keeps the masked `NSSecureTextField` to ASCII digits within the card's
     /// accepted length range and gates the default button until complete.
     private final class PinFieldDelegate: NSObject, NSTextFieldDelegate {
@@ -81,7 +93,17 @@
       }
     }
 
+    // MARK: Static Properties
+
+    internal static weak var activeGuard: ModalGuard?
+
     // MARK: Static Functions
+
+    /// Aborts the currently presented Web eID alert (and no unrelated modal).
+    internal static func abortActiveAlert() {
+      activeGuard?.clearAndDisableField()
+      activeGuard?.requestAbort()
+    }
 
     /// Presents a native macOS `NSAlert` with a masked `NSSecureTextField`
     /// (never revealable) for PIN 1 or PIN 2 entry.
@@ -112,7 +134,16 @@
       }
 
       let modalResult = withExtendedLifetime(delegate) {
-        runWithDeadline(alert, expiresAt: prompt.expiresAt, isCancelled: isCancelled)
+        runWithDeadline(
+          alert,
+          options: ModalOptions(
+            field: field,
+            confirmButton: confirmButton,
+            observeCardRemoval: true,
+            expiresAt: prompt.expiresAt
+          ),
+          isCancelled: isCancelled
+        )
       }
       let digits = field.stringValue
       field.stringValue = ""
@@ -120,6 +151,9 @@
       switch modalResult {
       case .firstButton where prompt.limits.accepts(digits):
         return .entered(digits)
+
+      case .cardRemoved:
+        return .cardRemoved
 
       case .timedOut:
         return .timedOut
@@ -138,17 +172,27 @@
       let alert = NSAlert()
       alert.messageText = prompt.title
       alert.informativeText = "\(prompt.origin)\n\n\(prompt.detail)"
-      _ = alert.addButton(withTitle: prompt.confirmTitle)
+      let confirmButton = alert.addButton(withTitle: prompt.confirmTitle)
       _ = alert.addButton(withTitle: String(localized: "Cancel"))
 
-      switch runWithDeadline(alert, expiresAt: prompt.expiresAt, isCancelled: isCancelled) {
+      let outcome = runWithDeadline(
+        alert,
+        options: ModalOptions(
+          field: nil,
+          confirmButton: confirmButton,
+          observeCardRemoval: false,
+          expiresAt: prompt.expiresAt
+        ),
+        isCancelled: isCancelled
+      )
+      switch outcome {
       case .firstButton:
         return .confirmed
 
       case .timedOut:
         return .timedOut
 
-      case .other:
+      case .cardRemoved, .other:
         return .cancelled
       }
     }
@@ -167,7 +211,16 @@
       alert.messageText = title
       alert.informativeText = "\(origin)\n\n\(message)"
       _ = alert.addButton(withTitle: String(localized: "OK"))
-      _ = runWithDeadline(alert, expiresAt: expiresAt, isCancelled: isCancelled)
+      _ = runWithDeadline(
+        alert,
+        options: ModalOptions(
+          field: nil,
+          confirmButton: nil,
+          observeCardRemoval: false,
+          expiresAt: expiresAt
+        ),
+        isCancelled: isCancelled
+      )
     }
 
     private static func makePinField(for role: CredentialRole) -> NSSecureTextField {
@@ -193,37 +246,6 @@
         lines.append(extraMessage)
       }
       return lines.joined(separator: "\n")
-    }
-
-    private static func runWithDeadline(
-      _ alert: NSAlert,
-      expiresAt: Date,
-      isCancelled: () -> Bool
-    ) -> ModalOutcome {
-      let remaining = expiresAt.timeIntervalSinceNow
-      guard remaining > 0 else { return .timedOut }
-      guard !isCancelled() else { return .other }
-
-      var didTimeOut = false
-      let timer = Timer(timeInterval: remaining, repeats: false) { _ in
-        MainActor.assumeIsolated {
-          didTimeOut = true
-          NSApp.abortModal()
-        }
-      }
-      RunLoop.main.add(timer, forMode: .common)
-      defer { timer.invalidate() }
-
-      NSApp.activate(ignoringOtherApps: true)
-      let response = alert.runModal()
-
-      if didTimeOut || Date() >= expiresAt {
-        return .timedOut
-      }
-      if isCancelled() {
-        return .other
-      }
-      return response == .alertFirstButtonReturn ? .firstButton : .other
     }
   }
 

@@ -17,6 +17,7 @@
 
     private enum PromptApproval {
       case approved(pin: String?)
+      case retryInspection
       case stop(WebEidError)
     }
 
@@ -76,11 +77,17 @@
         request: request,
         retryMessage: retryMessage
       )
-      guard case .approved(let enteredPin) = approval else {
-        if case .stop(let error) = approval {
-          return .failure(error)
-        }
-        return .failure(Self.cancelledError)
+      let enteredPin: String?
+      switch approval {
+      case .approved(let pin):
+        enteredPin = pin
+
+      case .retryInspection:
+        retryMessage = nil
+        return nil
+
+      case .stop(let error):
+        return .failure(error)
       }
 
       retryMessage = nil
@@ -115,6 +122,9 @@
         switch outcome {
         case .entered(let digits):
           return .approved(pin: digits)
+
+        case .cardRemoved:
+          return .retryInspection
 
         case .timedOut:
           return .stop(Self.timeoutError)
