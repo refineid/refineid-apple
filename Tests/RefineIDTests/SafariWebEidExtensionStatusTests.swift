@@ -12,49 +12,94 @@
   @Suite(.serialized, SharedDemoStateScope())
   internal struct SafariWebEidExtensionStatusTests {
     private static let estonianAllowance: UInt8 = 3
+    private static let settleTimeoutSeconds = 5
+    private static let settlePollMilliseconds = 10
+
+    private static func waitUntil(_ condition: () -> Bool) async -> Bool {
+      let deadline = ContinuousClock.now + .seconds(Self.settleTimeoutSeconds)
+      while !condition() {
+        if Task.isCancelled || ContinuousClock.now >= deadline {
+          return condition()
+        }
+        try? await Task.sleep(for: .milliseconds(Self.settlePollMilliseconds))
+      }
+      return true
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    internal func liveStateQueryReturnsWithoutMainActorIsolationCrash() async {
+      // Exercises the real SafariServices XPC round-trip to ensure it never
+      // traps on the background XPC reply queue.
+      let state = await SafariWebEidExtensionStatus.liveStateQuery()
+      #expect(state == .unknown || state == .enabled || state == .disabled)
+    }
 
     @Test
-    internal func transitionsBetweenUnknownDisabledAndEnabledAndIgnoresStaleCallbacks() {
-      var completions: [@MainActor (SafariWebEidExtensionStatus.State) -> Void] = []
+    internal func transitionsBetweenUnknownDisabledAndEnabledAndIgnoresStaleCallbacks()
+      async throws
+    {
+      var pending: [CheckedContinuation<SafariWebEidExtensionStatus.State, Never>] = []
+      defer {
+        for continuation in pending {
+          continuation.resume(returning: .unknown)
+        }
+      }
       var openedCount = 0
       let status = SafariWebEidExtensionStatus(
-        queryState: { completion in completions.append(completion) },
+        queryState: {
+          await withCheckedContinuation { continuation in
+            pending.append(continuation)
+          }
+        },
         openExtensionPreferences: { openedCount += 1 }
       )
 
       #expect(status.state == .unknown)
 
       status.refresh()
-      #expect(completions.count == 1)
-      completions[0](.disabled)
-      #expect(status.state == .disabled)
+      try #require(await Self.waitUntil { !pending.isEmpty })
+      pending.removeFirst().resume(returning: .disabled)
+      #expect(await Self.waitUntil { status.state == .disabled })
 
       status.refresh()
-      #expect(completions.count == 2)
+      let staleTask = status.refreshTask
+      try #require(await Self.waitUntil { !pending.isEmpty })
       status.reset()
       #expect(status.state == .unknown)
 
       // Late completion from before reset must be ignored.
-      completions[1](.disabled)
+      pending.removeFirst().resume(returning: .disabled)
+      await staleTask?.value
       #expect(status.state == .unknown)
 
       status.refresh()
-      completions[2](.enabled)
-      #expect(status.state == .enabled)
+      try #require(await Self.waitUntil { !pending.isEmpty })
+      pending.removeFirst().resume(returning: .enabled)
+      #expect(await Self.waitUntil { status.state == .enabled })
 
       status.refresh()
-      completions[3](.unknown)
-      #expect(status.state == .unknown)
+      try #require(await Self.waitUntil { !pending.isEmpty })
+      pending.removeFirst().resume(returning: .unknown)
+      #expect(await Self.waitUntil { status.state == .unknown })
 
       status.openPreferences()
       #expect(openedCount == 1)
     }
 
     @Test
-    internal func syncRefreshesWhenEligibleAndResetsWhenIneligible() {
-      var completions: [@MainActor (SafariWebEidExtensionStatus.State) -> Void] = []
+    internal func syncRefreshesWhenEligibleAndResetsWhenIneligible() async throws {
+      var pending: [CheckedContinuation<SafariWebEidExtensionStatus.State, Never>] = []
+      defer {
+        for continuation in pending {
+          continuation.resume(returning: .unknown)
+        }
+      }
       let status = SafariWebEidExtensionStatus(
-        queryState: { completion in completions.append(completion) },
+        queryState: {
+          await withCheckedContinuation { continuation in
+            pending.append(continuation)
+          }
+        },
         openExtensionPreferences: {
           // Unused by eligibility sync test.
         }
@@ -62,21 +107,24 @@
 
       // Card identified before becoming ready: stays reset without querying.
       status.sync(eligible: false)
-      #expect(completions.isEmpty)
+      #expect(status.refreshTask == nil)
+      #expect(pending.isEmpty)
       #expect(status.state == .unknown)
 
       // Card becomes ready: queries Safari and surfaces disabled state.
       status.sync(eligible: true)
-      #expect(completions.count == 1)
-      completions[0](.disabled)
-      #expect(status.state == .disabled)
+      try #require(await Self.waitUntil { !pending.isEmpty })
+      pending.removeFirst().resume(returning: .disabled)
+      #expect(await Self.waitUntil { status.state == .disabled })
 
       // Entering demo mode or losing readiness resets and drops stale replies.
       status.sync(eligible: true)
-      #expect(completions.count == 2)
+      let staleTask = status.refreshTask
+      try #require(await Self.waitUntil { !pending.isEmpty })
       status.sync(eligible: false)
       #expect(status.state == .unknown)
-      completions[1](.disabled)
+      pending.removeFirst().resume(returning: .disabled)
+      await staleTask?.value
       #expect(status.state == .unknown)
     }
 
