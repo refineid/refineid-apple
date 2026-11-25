@@ -47,15 +47,13 @@
         let timer = Timer(
           timeInterval: Layout.abortRetryIntervalSeconds,
           repeats: true
-        ) { [weak self] activeTimer in
+        ) { [weak self] _ in
           MainActor.assumeIsolated {
             guard let self, let owned = self.window else {
-              activeTimer.invalidate()
               return
             }
             if NSApp.modalWindow === owned {
-              activeTimer.invalidate()
-              self.retryTimer = nil
+              self.invalidate()
               NSApp.abortModal()
             }
           }
