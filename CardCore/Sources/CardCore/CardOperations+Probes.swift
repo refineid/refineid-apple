@@ -106,6 +106,8 @@ extension CardOperations {
     let pin1 = try probeRetryCounter(role: .pin1)
     let pin2 = try probeRetryCounter(role: .pin2)
     let puk = includingPuk ? try probeRetryCounter(role: .puk) : .noInformation
+    let isEstonianCard =
+      referenceMemo.resolved == .estonian2018 || referenceMemo.resolved == .estonian2025
     let pin2RequiresChange =
       referenceMemo.resolved == .estonian2025
       && (try? readPinChangeRecord(role: .pin2)) == .unchanged
@@ -114,7 +116,8 @@ extension CardOperations {
       pin2: pin2,
       puk: puk,
       pristineAllowance: pristineRetryAllowance,
-      pin2RequiresChangeBeforeSigning: pin2RequiresChange
+      pin2RequiresChangeBeforeSigning: pin2RequiresChange,
+      isEstonianCard: isEstonianCard
     )
   }
 

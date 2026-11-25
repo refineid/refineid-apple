@@ -95,6 +95,9 @@ internal final class CredentialRetryHealth: ObservableObject {
   /// is allowed (EstEID 2025, GED24035 sections 3.1 and 8.3.4).
   @Published internal private(set) var pin2RequiresChangeBeforeSigning = false
 
+  /// Whether the card now in the reader is an Estonian eID card.
+  @Published internal private(set) var isEstonianCard = false
+
   /// Whether the PIN codes window has opened by itself for the card now
   /// in the reader; it opens once per insertion, so a window the holder
   /// closed stays closed through later readings of the same card.
@@ -184,6 +187,7 @@ internal final class CredentialRetryHealth: ObservableObject {
     level = nil
     report = nil
     pin2RequiresChangeBeforeSigning = false
+    isEstonianCard = false
   }
 
   internal func markPin2RequiresChangeBeforeSigning() {
@@ -192,6 +196,7 @@ internal final class CredentialRetryHealth: ObservableObject {
 
   private func apply(_ report: CredentialProbeReport?) {
     pin2RequiresChangeBeforeSigning = report?.pin2RequiresChangeBeforeSigning ?? false
+    isEstonianCard = report?.isEstonianCard ?? false
     guard let report,
       let pin1 = Self.attempts(report.pin1),
       let pin2 = Self.attempts(report.pin2),

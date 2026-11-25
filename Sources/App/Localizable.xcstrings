@@ -2863,6 +2863,22 @@
         }
       }
     },
+    "Enable the RefineID Web eID extension in Safari to log in with an Estonian ID card.": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ota RefineID Web eID -laajennus käyttöön Safarissa, jotta voit kirjautua virolaisella henkilökortilla."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivera tillägget RefineID Web eID i Safari för att logga in med ett estniskt ID-kort."
+          }
+        }
+      }
+    },
     "Enter Basic PIN 1": {
       "extractionState": "manual",
       "localizations": {
@@ -4280,6 +4296,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Öppna RefineID fjärråtkomst på telefonen och ange kopplingskoden:"
+          }
+        }
+      }
+    },
+    "Open Safari Settings…": {
+      "localizations": {
+        "fi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avaa Safarin asetukset…"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öppna Safaris inställningar…"
           }
         }
       }

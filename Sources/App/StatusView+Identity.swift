@@ -22,6 +22,32 @@
         && retryHealth.pin2RequiresChangeBeforeSigning
     }
 
+    internal var safariExtensionStatus: SafariWebEidExtensionStatus {
+      SafariWebEidExtensionStatus.shared
+    }
+
+    /// Whether the window should show the Safari Web eID extension enablement
+    /// guide for the Estonian card currently in the reader.
+    internal var showsSafariExtensionNotice: Bool {
+      SafariWebEidExtensionStatus.shouldShowGuide(
+        isDemoMode: DemoMode.shared.isActive,
+        availability: availability,
+        isEstonianCard: retryHealth.isEstonianCard,
+        extensionState: safariExtensionStatus.state
+      )
+    }
+
+    internal var safariExtensionObserver: SafariWebEidExtensionStatus.Observer {
+      SafariWebEidExtensionStatus.Observer(
+        eligible: SafariWebEidExtensionStatus.isEligible(
+          isDemoMode: DemoMode.shared.isActive,
+          availability: availability,
+          isEstonianCard: retryHealth.isEstonianCard
+        ),
+        status: safariExtensionStatus
+      )
+    }
+
     /// Ready when a document is waiting and PIN 2 has been entered for
     /// it: PIN 2 is asked for every signature or batch and kept no longer
     /// (RAPP v26.11.8 §11 item 2).

@@ -23,6 +23,12 @@
           } else {
             statusRow(showsIdentity: documentControls.showsIdentity)
             if documentControls.showsIdentity,
+              showsSafariExtensionNotice,
+              StatusMessage(signingModel) == nil
+            {
+              safariExtensionNotice
+            }
+            if documentControls.showsIdentity,
               signingBlockedByInitialPin2,
               StatusMessage(signingModel) == nil
             {
@@ -66,6 +72,24 @@
     internal var panelOutline: some View {
       RoundedRectangle(cornerRadius: Self.readySpacing).strokeBorder(.secondary)
         .allowsHitTesting(false)
+    }
+
+    internal var safariExtensionNotice: some View {
+      VStack(spacing: Self.readySpacing) {
+        Text(
+          "Enable the RefineID Web eID extension in Safari to log in with an Estonian ID card."
+        )
+        .foregroundStyle(.orange)
+        .multilineTextAlignment(.center)
+        Button("Open Safari Settings…") {
+          safariExtensionStatus.openPreferences()
+        }
+        .accessibilityIdentifier("openSafariExtensionSettings")
+      }
+      .frame(maxWidth: .infinity)
+      .padding(Self.readySpacing)
+      .overlay { panelOutline }
+      .accessibilityIdentifier("safariExtensionDisabledNotice")
     }
 
     internal var pin2ChangeNotice: some View {
