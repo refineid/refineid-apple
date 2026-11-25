@@ -161,18 +161,46 @@ extension CardMaintenance {
     ) {
       return .longTermUnavailable(refusal)
     }
+    if !openedByPin2, (try? operations.requiresPin2ChangeBeforeSigning()) == true {
+      return .refused(.pin2ChangeRequired)
+    }
     if let refusal = Self.authorization(operations, pin2: pin2, openedByPin2: openedByPin2) {
       return refusal
     }
     let content = builder(identity.certificate)
     let digest = Data(SHA384.hash(data: content))
-    guard
-      let request = identity.profile.qualifiedDocumentRequest(digest: digest),
-      let rawSignature = try? operations.computeQualifiedSignature(
+    return Self.signAndVerify(
+      operations: operations,
+      identity: identity,
+      content: content,
+      digest: digest
+    )
+  }
+
+  private static func signAndVerify(
+    operations: CardOperations,
+    identity: QualifiedIdentity,
+    content: Data,
+    digest: Data
+  ) -> QualifiedAnswer {
+    guard let request = identity.profile.qualifiedDocumentRequest(digest: digest) else {
+      return .refused(.failed)
+    }
+    let rawSignature: Data
+    do {
+      rawSignature = try operations.computeQualifiedSignature(
         overDigest: digest,
         algorithm: request.algorithm,
         expectedSignatureLength: request.expectedSignatureLength
-      ),
+      )
+    } catch CardOperationError.signRejected(.conditionsNotSatisfied)
+      where operations.resolvedNumbering == .estonian2025
+    {
+      return .refused(.pin2ChangeRequired)
+    } catch {
+      return .refused(.failed)
+    }
+    guard
       let signature = request.wireSignature(from: rawSignature),
       request.isSatisfied(by: signature, from: identity.publicKey)
     else {

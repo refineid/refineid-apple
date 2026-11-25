@@ -840,6 +840,28 @@
         }
       }
     },
+    "error.pin2ChangeRequired" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change PIN 2 so you can sign documents."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vaihda PIN 2, niin voit allekirjoittaa asiakirjoja."
+          }
+        },
+        "sv" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Byt PIN 2 för att kunna underteckna dokument."
+          }
+        }
+      }
+    },
     "error.pin2Format" : {
       "extractionState" : "stale",
       "localizations" : {

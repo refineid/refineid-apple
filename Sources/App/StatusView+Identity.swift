@@ -14,6 +14,29 @@
     private static let boxCornerRadius: CGFloat = 10
     private static let boxBorderWidth: CGFloat = 1
 
+    /// Whether the card in this Mac's reader still requires changing its
+    /// initial PIN 2 before document signing is possible (EstEID 2025).
+    internal var signingBlockedByInitialPin2: Bool {
+      !DocumentSigner.usesRappSigning
+        && availability == .ready
+        && retryHealth.pin2RequiresChangeBeforeSigning
+    }
+
+    /// Ready when a document is waiting and PIN 2 has been entered for
+    /// it: PIN 2 is asked for every signature or batch and kept no longer
+    /// (RAPP v26.11.8 §11 item 2).
+    internal var canSign: Bool {
+      availability == .ready
+        && !signingBlockedByInitialPin2
+        && !selection.awaitsChoice
+        && signingModel.pending != nil
+        && !signingModel.working
+        // Not while the card is being read for the stamp: it is one
+        // card, and asking it to sign mid-read is asking it to be in
+        // two places.
+        && !signingModel.readingStamp
+    }
+
     /// Which document controls the window shows now.
     internal var documentControls: StatusDocumentControls {
       StatusDocumentControls(
@@ -22,7 +45,8 @@
         signing: signingModel.working,
         readingCard: signingModel.readingStamp,
         failureShown: signingModel.unacknowledgedFailure != nil,
-        offersVerification: StatusDocumentControls.defaultOffersVerification
+        offersVerification: StatusDocumentControls.defaultOffersVerification,
+        signingAvailable: !signingBlockedByInitialPin2
       )
     }
 

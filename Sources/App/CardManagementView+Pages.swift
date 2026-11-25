@@ -4,10 +4,30 @@ import CardCore
 import SwiftUI
 
 extension CardManagementView {
+  // MARK: Lifecycle
+
+  /// Management with no activation outcome to report.
+  internal init(
+    readerCardIsPresent: Bool,
+    activationRequired: Bool,
+    cardAccessNumber: String?
+  ) {
+    self.init(
+      readerCardIsPresent: readerCardIsPresent,
+      activationRequired: activationRequired,
+      cardAccessNumber: cardAccessNumber,
+      activation: nil,
+      activationNeeds: nil,
+      pinLengths: nil,
+      onActivationSucceeded: nil
+    )
+  }
+
   // MARK: Static Functions
 
   internal static func initialTask(
-    for recovery: CredentialRetryHealth.Recovery?
+    for recovery: CredentialRetryHealth.Recovery?,
+    pin2RequiresChange: Bool
   ) -> ManagementTask {
     switch recovery {
     case .resetPin1, .resetBothPins:
@@ -17,7 +37,7 @@ extension CardManagementView {
       .resetPin2
 
     case .useOtherSoftware, nil:
-      .changePin1
+      pin2RequiresChange ? .changePin2 : .changePin1
     }
   }
 

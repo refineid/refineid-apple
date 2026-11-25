@@ -136,6 +136,15 @@ internal enum EstonianEidTestFixture {
     ])
   }
 
+  internal static func pinChangedFlagResponse(changed: Bool) -> Data {
+    Data([
+      FineidValues.pinChangedTagHigh,
+      FineidValues.pinChangedTagLow,
+      FineidValues.pinChangedLength,
+      changed ? FineidValues.pinChangedFlagChanged : FineidValues.pinChangedFlagUnchanged,
+    ])
+  }
+
   internal static func objectDirectory() -> Data {
     let entry: (UInt8, FileIdentifier) -> Data = { tag, file in
       let pathBytes = Data(FileIdentifier.mainFile.bytes + file.bytes)

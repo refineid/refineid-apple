@@ -173,6 +173,11 @@ internal enum DocumentSigningMessage {
         "error.notActivated",
         "The signature PIN is not activated. Activate the card first.")
 
+    case .pin2ChangeRequired:
+      text(
+        "error.pin2ChangeRequired",
+        "Change PIN 2 so you can sign documents.")
+
     case .noCard:
       text("error.noCard", "No readable identity card was found.")
 

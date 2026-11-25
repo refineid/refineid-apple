@@ -285,24 +285,9 @@ internal struct CardManagementView: View {
     _model = StateObject(wrappedValue: initialModel)
     _task = State(
       initialValue: Self.initialTask(
-        for: CredentialRetryHealth.shared.recovery)
-    )
-  }
-
-  /// Management with no activation outcome to report.
-  internal init(
-    readerCardIsPresent: Bool,
-    activationRequired: Bool,
-    cardAccessNumber: String?
-  ) {
-    self.init(
-      readerCardIsPresent: readerCardIsPresent,
-      activationRequired: activationRequired,
-      cardAccessNumber: cardAccessNumber,
-      activation: nil,
-      activationNeeds: nil,
-      pinLengths: nil,
-      onActivationSucceeded: nil
+        for: CredentialRetryHealth.shared.recovery,
+        pin2RequiresChange: CredentialRetryHealth.shared.pin2RequiresChangeBeforeSigning
+      )
     )
   }
 
@@ -344,6 +329,8 @@ internal struct CardManagementView: View {
       task = .resetPin1
     } else if blocked.contains(report.pin2) {
       task = .resetPin2
+    } else if report.pin2RequiresChangeBeforeSigning {
+      task = .changePin2
     }
   }
 }
