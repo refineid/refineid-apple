@@ -187,9 +187,14 @@
       switch error {
       case CardOperationError.pinRejected(let remaining):
         rateLimiter.recordRefusal(origin: origin, at: Date())
-        let count = Int64(remaining.attemptsRemaining)
-        publishHolderNotice(
-          String(localized: "PIN rejected (\(count) attempts remaining)"))
+        let notice =
+          if remaining.attemptsRemaining == 1 {
+            String(localized: "PIN rejected (1 attempt remaining)")
+          } else {
+            String(
+              localized: "PIN rejected (\(Int64(remaining.attemptsRemaining)) attempts remaining)")
+          }
+        publishHolderNotice(notice)
         return .credentialRefused("PIN rejected")
 
       case CardOperationError.pinBlocked:

@@ -58,7 +58,7 @@ internal struct Pin1ProbeTests {
   internal static let digits = "1234"
   internal static let otherDigits = "654321"
   internal static let statusHighByteShift = 8
-  internal static let floorRefusalAttempts: UInt8 = 2
+  internal static let floorRefusalAttempts: UInt8 = RetryCount.lowAttemptCeiling
 
   internal static func serial(_ value: String) throws -> ChipSerial {
     try #require(ChipSerial(value: value))

@@ -76,8 +76,9 @@ the card's non-repudiation key.
   smart card's internal security environment maintains the authoritative retry
   counters. Software never fakes or predicts retry exhaustion locally.
 - **Safety floors.** A command that could spend a verification attempt (VERIFY)
-  is refused locally when the counter is at 1 or 2 tries remaining or
-  unreadable, protecting the cardholder from accidentally locking the card.
+  is refused locally when the counter is at 1 try remaining (the last attempt) or
+  unreadable, protecting the cardholder from accidentally locking any card while
+  still allowing a retry on 3-try cards (such as Estonian eID).
 - **Blocked PINs and PUK submission.** At 0 tries remaining (blocked), the
   command is sent to the card so the card answers truthfully for itself (and
   spends nothing); software cannot know whether the code in the holder's hand

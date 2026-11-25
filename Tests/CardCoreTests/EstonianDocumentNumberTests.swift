@@ -183,6 +183,20 @@ internal struct EstonianDocumentNumberTests {
         probe: .remaining(two),
         spending: .heldPin1,
         pristineAllowance: Self.estonianAllowance
+      ) == .heldPin1Unconfirmed
+    )
+    #expect(
+      PinAdmission(
+        probe: .remaining(two),
+        spending: .entered,
+        pristineAllowance: Self.estonianAllowance
+      ) == .proceed
+    )
+    #expect(
+      PinAdmission(
+        probe: .remaining(one),
+        spending: .heldPin1,
+        pristineAllowance: Self.estonianAllowance
       ) == .retryFloor(.refuseLowAttempts)
     )
     #expect(

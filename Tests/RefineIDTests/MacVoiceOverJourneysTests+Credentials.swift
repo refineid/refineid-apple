@@ -221,7 +221,7 @@
         }
       )
 
-      let floorReason = "Only 2 attempts remaining. Unblock with the PUK."
+      let floorReason = "Only 1 attempt remaining. Unblock with the PUK."
       let floorNodes = await Self.inspect(
         Form {
           CardFormButton(

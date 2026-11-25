@@ -37,8 +37,8 @@ internal final class VirtualIDCardSigningTests {
   }
 
   @Test
-  internal func testQualifiedSignatureNeverSpendsLastTwoAttempts() async {
-    for remaining: UInt8 in 0...2 {
+  internal func testQualifiedSignatureNeverSpendsLastAttempt() async {
+    for remaining: UInt8 in 0...RetryCount.lowAttemptCeiling {
       var state = VirtualIDCard.Scenario.registeredNearField.snapshot
       state.card.pin2.attemptsRemaining = remaining
       let card = VirtualIDCard(snapshot: state)
@@ -58,7 +58,7 @@ internal final class VirtualIDCardSigningTests {
 
   @Test
   internal func testWrongSignaturePINConsumesExactlyOneEligibleAttempt() async {
-    for remaining: UInt8 in 3...5 {
+    for remaining: UInt8 in RetryFloor.minimumAttemptsToProceed...RetryCount.pristineAllowance {
       var state = VirtualIDCard.Scenario.registeredNearField.snapshot
       state.card.pin2.attemptsRemaining = remaining
       let card = VirtualIDCard(snapshot: state)

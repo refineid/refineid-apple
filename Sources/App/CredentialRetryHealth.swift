@@ -11,7 +11,7 @@ import SwiftUI
 @MainActor
 internal final class CredentialRetryHealth: ObservableObject {
   private enum RetryThreshold {
-    static let lowAttempts: UInt8 = 2
+    static let lowAttempts: UInt8 = RetryCount.lowAttemptCeiling
     static let zeroAttempts: UInt8 = 0
   }
 
@@ -59,7 +59,7 @@ internal final class CredentialRetryHealth: ObservableObject {
         String(localized: "A credential has fewer than five attempts remaining")
 
       case .critical:
-        String(localized: "A credential is blocked or has at most two attempts remaining")
+        String(localized: "A credential is blocked or has only one attempt remaining")
       }
     }
   }

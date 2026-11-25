@@ -75,7 +75,11 @@ extension CardManagementModel {
       var remaining: RetryCount?
       if case .remaining(let count) = outcome { remaining = count }
       return CredentialOutcomeMessage.floorRefusal(
-        role: role, verdict: .refuseLowAttempts, remaining: remaining)
+        role: role,
+        verdict: .refuseLowAttempts,
+        remaining: remaining,
+        numbering: pinLengths?.numbering
+      )
     }
   }
 }

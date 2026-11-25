@@ -265,9 +265,9 @@ internal struct PaceEstablishmentTests {
     #expect(card.generalAuthenticateCount == 1)
   }
 
-  @Test(arguments: [twoTriesLeftHex, oneTryLeftHex])
-  internal func theFloorRefusesBeforeAnyGeneralAuthenticate(status: String) throws {
-    let card = try Self.organizationCard(status: status)
+  @Test
+  internal func theFloorRefusesBeforeAnyGeneralAuthenticate() throws {
+    let card = try Self.organizationCard(status: Self.oneTryLeftHex)
     #expect {
       try Self.run(card, with: try Self.pin1(Self.pinDigits))
     } throws: { error in
@@ -294,9 +294,9 @@ internal struct PaceEstablishmentTests {
     #expect(card.generalAuthenticateCount == 0)
   }
 
-  @Test
-  internal func theFloorServesThreeTriesLeft() throws {
-    let card = try Self.organizationCard(status: Self.threeTriesLeftHex)
+  @Test(arguments: [twoTriesLeftHex, threeTriesLeftHex])
+  internal func theFloorServesTwoOrMoreTriesLeft(status: String) throws {
+    let card = try Self.organizationCard(status: status)
     let established = try Self.run(card, with: try Self.pin1(Self.pinDigits))
     #expect(established.keys == (try #require(card.sessionKeys)))
   }

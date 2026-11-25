@@ -33,10 +33,10 @@ internal struct RetryFloorTests {
   }
 
   @Test
-  internal func floorIsAboveTheLastTwoAttempts() {
-    // The invariant behind the numbers: the floor must keep at least two
-    // attempts out of reach so RefineID can never consume the last one.
-    #expect(RetryFloor.minimumAttemptsToProceed >= 3)
+  internal func floorIsAboveTheLastAttempt() {
+    // The invariant behind the numbers: the floor must keep the last
+    // attempt out of reach so RefineID can never consume it and block a card.
+    #expect(RetryFloor.minimumAttemptsToProceed >= 2)
   }
 
   @Test
