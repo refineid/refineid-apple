@@ -1,0 +1,10 @@
+{
+  "extension_name": {
+    "message": "RefineID Web eID",
+    "description": "Display name of the Safari Web Extension"
+  },
+  "extension_description": {
+    "message": "Authenticate and sign documents on Web eID websites using your smart card in RefineID.",
+    "description": "Description of the Safari Web Extension"
+  }
+}

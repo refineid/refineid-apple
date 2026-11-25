@@ -1,5 +1,4 @@
 #!/usr/bin/env swift
-
 // Copyright 2026 Petri Koistinen. Licensed under the Apache License, Version 2.0.
 //
 // Drive the complete Apple release lifecycle in the language this project
@@ -256,15 +255,19 @@ private struct ReleaseArchiveLayout {
   let tokenBundle: URL
   let rappBundle: URL
   let discoveryBundle: URL
+  let safariBundle: URL
   let tokenExecutable: URL
   let rappExecutable: URL
   let discoveryExecutable: URL
+  let safariExecutable: URL
   let tokenPlist: URL
   let rappPlist: URL
   let discoveryPlist: URL
+  let safariPlist: URL
   let expectedArchitectures: Set<String>
   let hasRapp: Bool
   let hasDiscovery: Bool
+  let hasSafari: Bool
 }
 
 private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
@@ -283,6 +286,7 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
     let tokenBundle = plugins.appendingPathComponent("RefineIDTokenExtension.appex")
     let rappBundle = plugins.appendingPathComponent("RefineIDRappTokenExtension.appex")
     let discoveryBundle = plugins.appendingPathComponent("RefineIDDiscoveryExtension.appex")
+    let safariBundle = plugins.appendingPathComponent("RefineIDSafariExtension.appex")
     return ReleaseArchiveLayout(
       platform: "macOS",
       app: app,
@@ -293,6 +297,7 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
       tokenBundle: tokenBundle,
       rappBundle: rappBundle,
       discoveryBundle: discoveryBundle,
+      safariBundle: safariBundle,
       tokenExecutable: tokenBundle.appendingPathComponent("Contents/MacOS/RefineIDTokenExtension"),
       rappExecutable: rappBundle.appendingPathComponent(
         "Contents/MacOS/RefineIDRappTokenExtension"
@@ -300,15 +305,20 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
       discoveryExecutable: discoveryBundle.appendingPathComponent(
         "Contents/MacOS/RefineIDDiscoveryExtension"
       ),
+      safariExecutable: safariBundle.appendingPathComponent(
+        "Contents/MacOS/RefineIDSafariExtension"
+      ),
       tokenPlist: tokenBundle.appendingPathComponent("Contents/Info.plist"),
       rappPlist: rappBundle.appendingPathComponent("Contents/Info.plist"),
       discoveryPlist: discoveryBundle.appendingPathComponent("Contents/Info.plist"),
+      safariPlist: safariBundle.appendingPathComponent("Contents/Info.plist"),
       expectedArchitectures: ["arm64"],
       // macOS ships the local card only: the RAPP extension stays out
       // of the archive with the remote card gated off, and nothing
       // listens.
       hasRapp: false,
-      hasDiscovery: false
+      hasDiscovery: false,
+      hasSafari: true
     )
   }
 
@@ -316,6 +326,7 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
   let tokenBundle = plugins.appendingPathComponent("RefineIDTokenExtension.appex")
   let rappBundle = plugins.appendingPathComponent("RefineIDRappTokenExtension.appex")
   let discoveryBundle = plugins.appendingPathComponent("RefineIDDiscoveryExtension.appex")
+  let safariBundle = plugins.appendingPathComponent("RefineIDSafariExtension.appex")
   return ReleaseArchiveLayout(
     platform: "iOS",
     app: app,
@@ -326,18 +337,22 @@ private func releaseArchiveLayout(at archive: URL) -> ReleaseArchiveLayout {
     tokenBundle: tokenBundle,
     rappBundle: rappBundle,
     discoveryBundle: discoveryBundle,
+    safariBundle: safariBundle,
     tokenExecutable: tokenBundle.appendingPathComponent("RefineIDTokenExtension"),
     rappExecutable: rappBundle.appendingPathComponent("RefineIDRappTokenExtension"),
     discoveryExecutable: discoveryBundle.appendingPathComponent("RefineIDDiscoveryExtension"),
+    safariExecutable: safariBundle.appendingPathComponent("RefineIDSafariExtension"),
     tokenPlist: tokenBundle.appendingPathComponent("Info.plist"),
     rappPlist: rappBundle.appendingPathComponent("Info.plist"),
     discoveryPlist: discoveryBundle.appendingPathComponent("Info.plist"),
+    safariPlist: safariBundle.appendingPathComponent("Info.plist"),
     expectedArchitectures: ["arm64"],
     // The first full version carries the remote card (owner decision
     // 2026-09-10), so an iOS candidate carries the RAPP extension
     // and the local-network declarations.
     hasRapp: true,
-    hasDiscovery: true
+    hasDiscovery: true,
+    hasSafari: false
   )
 }
 
@@ -432,6 +447,13 @@ private func inspectReleaseArchive(_ archive: URL) {
   } else if releaseIsDirectory(layout.discoveryBundle) {
     releaseFail("discovery extension is iOS-only: \(layout.discoveryBundle.path)")
   }
+  if layout.hasSafari {
+    guard releaseIsDirectory(layout.safariBundle) else {
+      releaseFail("embedded extension missing: \(layout.safariBundle.path)")
+    }
+  } else if releaseIsDirectory(layout.safariBundle) {
+    releaseFail("Safari Web eID extension is macOS-only: \(layout.safariBundle.path)")
+  }
 
   var executables = [layout.appExecutable, layout.tokenExecutable]
   var bundles = [layout.app, layout.tokenBundle]
@@ -448,6 +470,12 @@ private func inspectReleaseArchive(_ archive: URL) {
     bundles.append(layout.discoveryBundle)
     extensions.append(layout.discoveryBundle)
     extensionPlists.append(layout.discoveryPlist)
+  }
+  if layout.hasSafari {
+    executables.append(layout.safariExecutable)
+    bundles.append(layout.safariBundle)
+    extensions.append(layout.safariBundle)
+    extensionPlists.append(layout.safariPlist)
   }
 
   let products = archive.appendingPathComponent("Products")
@@ -471,7 +499,7 @@ private func inspectReleaseArchive(_ archive: URL) {
   } catch {
     releaseFail("could not inspect \(layout.plugins.path): \(error.localizedDescription)")
   }
-  let expectedPluginCount = 1 + (layout.hasRapp ? 1 : 0) + (layout.hasDiscovery ? 1 : 0)
+  let expectedPluginCount = extensions.count
   guard pluginCount == expectedPluginCount else {
     releaseFail("expected \(expectedPluginCount) plug-in(s), found \(pluginCount)")
   }
@@ -631,6 +659,21 @@ private func inspectReleaseArchive(_ archive: URL) {
             "com.apple.security.app-sandbox",
             "com.apple.security.application-groups",
             "com.apple.security.network.client",
+          ]
+        )
+      )
+    }
+    if layout.hasSafari {
+      rules.append(
+        (
+          layout.safariBundle,
+          signingEntitlements.union([
+            "com.apple.security.app-sandbox",
+            "com.apple.security.application-groups",
+          ]),
+          [
+            "com.apple.security.app-sandbox",
+            "com.apple.security.application-groups",
           ]
         )
       )
@@ -850,6 +893,13 @@ private func inspectReleaseArchive(_ archive: URL) {
       releaseFail("RAPP persistent-token extension configuration is incorrect")
     }
     releaseNote("reader and RAPP CryptoTokenKit drivers are distinct")
+  }
+  if layout.hasSafari {
+    let safariConfiguration = releaseExtensionConfiguration(at: layout.safariPlist)
+    guard safariConfiguration.point == "com.apple.Safari.web-extension" else {
+      releaseFail("Safari Web eID extension point configuration is incorrect")
+    }
+    releaseNote("Safari Web eID extension configuration verified")
   }
 
   if layout.platform == "iOS" {
@@ -1253,6 +1303,9 @@ private func releaseBundleIdentifiers(inArchive archive: URL) -> [String] {
   }
   if layout.hasDiscovery {
     plists.append(layout.discoveryPlist)
+  }
+  if layout.hasSafari {
+    plists.append(layout.safariPlist)
   }
   return plists.compactMap {
     NSDictionary(contentsOf: $0)?["CFBundleIdentifier"] as? String
@@ -2563,7 +2616,10 @@ private let installLSRegister =
   "/System/Library/Frameworks/CoreServices.framework/Frameworks/"
   + "LaunchServices.framework/Support/lsregister"
 private let installTokenExtensions = [
-  "RefineIDTokenExtension", "RefineIDDiscoveryExtension", "RefineIDRappTokenExtension",
+  "RefineIDTokenExtension",
+  "RefineIDDiscoveryExtension",
+  "RefineIDRappTokenExtension",
+  "RefineIDSafariExtension",
 ]
 
 private func installNote(_ scope: String, _ message: String) {

@@ -40,7 +40,7 @@ internal struct RefineIDApp: App {
     ///
     /// XCTest injected its bundle and no UI test drives the app; such a run
     /// opens no window and never takes focus or a place in the Dock.
-    private static let hostsUnitTests =
+    internal static let hostsUnitTests =
       ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
       && !ProcessInfo.processInfo.arguments.contains("--ui-test")
 

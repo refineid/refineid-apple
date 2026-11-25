@@ -44,6 +44,12 @@
 		D8D396B5E12DA372E43BD5D3 /* RefineIDRappTokenExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DC4E6B27DAEFC74447BC438F /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7298DA08AF9815CC40D89601 /* CardCore */; };
 		FE9FF60F2BD451120817294F /* CryptoTokenKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000003 /* CryptoTokenKit.framework */; };
+		EE0000000000000000000001 /* SafariServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EE0000000000000000000021 /* SafariServices.framework */; };
+		EE0000000000000000000002 /* CardCore in Frameworks */ = {isa = PBXBuildFile; productRef = EE0000000000000000000031 /* CardCore */; };
+		EE0000000000000000000003 /* RefineIDSafariExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EE0000000000000000000020 /* RefineIDSafariExtension.appex */; platformFilters = (macos, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EE0000000000000000000004 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2D0000000000000000000008 /* PrivacyInfo.xcprivacy */; };
+		EE0000000000000000000005 /* Sources/SafariExtensionResources/_locales in Resources */ = {isa = PBXBuildFile; fileRef = EE0000000000000000000024 /* Sources/SafariExtensionResources/_locales */; };
+		EE0000000000000000000006 /* Sources/SafariExtensionResources/images in Resources */ = {isa = PBXBuildFile; fileRef = EE0000000000000000000025 /* Sources/SafariExtensionResources/images */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -82,6 +88,13 @@
 			remoteGlobalIDString = CE0000000000000000000020;
 			remoteInfo = RefineIDTestHost;
 		};
+		EE0000000000000000000010 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1D0000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EE0000000000000000000040;
+			remoteInfo = RefineIDSafariExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -94,6 +107,7 @@
 				6D0000000000000000000003 /* RefineIDTokenExtension.appex in Embed Foundation Extensions */,
 				6D000000000000000000000A /* RefineIDDiscoveryExtension.appex in Embed Foundation Extensions */,
 				D8D396B5E12DA372E43BD5D3 /* RefineIDRappTokenExtension.appex in Embed Foundation Extensions */,
+				EE0000000000000000000003 /* RefineIDSafariExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -137,6 +151,12 @@
 		BC0000000000000000000012 /* Sources/App/OrganizationCardSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/App/OrganizationCardSupport.swift; sourceTree = SOURCE_ROOT; };
 		BD0000000000000000000001 /* RefineIDTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RefineIDTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE0000000000000000000001 /* RefineIDTestHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RefineIDTestHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EE0000000000000000000020 /* RefineIDSafariExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RefineIDSafariExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EE0000000000000000000021 /* SafariServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SafariServices.framework; path = System/Library/Frameworks/SafariServices.framework; sourceTree = SDKROOT; };
+		EE0000000000000000000022 /* SafariExtension-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SafariExtension-Info.plist"; sourceTree = "<group>"; };
+		EE0000000000000000000023 /* SafariExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SafariExtension.entitlements; sourceTree = "<group>"; };
+		EE0000000000000000000024 /* Sources/SafariExtensionResources/_locales */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Sources/SafariExtensionResources/_locales; sourceTree = SOURCE_ROOT; };
+		EE0000000000000000000025 /* Sources/SafariExtensionResources/images */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Sources/SafariExtensionResources/images; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -178,6 +198,11 @@
 		3D0000000000000000000006 /* TestSupport */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = TestSupport;
+			sourceTree = "<group>";
+		};
+		EE0000000000000000000030 /* SafariExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SafariExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -247,6 +272,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EE0000000000000000000051 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EE0000000000000000000001 /* SafariServices.framework in Frameworks */,
+				EE0000000000000000000002 /* CardCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -273,6 +307,7 @@
 				2D000000000000000000000E /* RefineIDUITests.xctest */,
 				5ADED64532B13872419C7B30 /* RefineIDRappTokenExtension.appex */,
 				CE0000000000000000000001 /* RefineIDTestHost.app */,
+				EE0000000000000000000020 /* RefineIDSafariExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -292,6 +327,9 @@
 				BC000000000000000000000E /* Sources/App/ExtensionTrace.swift */,
 				BC0000000000000000000012 /* Sources/App/OrganizationCardSupport.swift */,
 				2D000000000000000000000F /* Sources/Settings.bundle */,
+				EE0000000000000000000030 /* SafariExtension */,
+				EE0000000000000000000024 /* Sources/SafariExtensionResources/_locales */,
+				EE0000000000000000000025 /* Sources/SafariExtensionResources/images */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -306,6 +344,8 @@
 				2D000000000000000000000C /* DiscoveryExtension.entitlements */,
 				2D000000000000000000000D /* DiscoveryExtension-iOS.entitlements */,
 				2D0000000000000000000008 /* PrivacyInfo.xcprivacy */,
+				EE0000000000000000000022 /* SafariExtension-Info.plist */,
+				EE0000000000000000000023 /* SafariExtension.entitlements */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -314,6 +354,7 @@
 			isa = PBXGroup;
 			children = (
 				2D0000000000000000000003 /* CryptoTokenKit.framework */,
+				EE0000000000000000000021 /* SafariServices.framework */,
 				40AD1C83C8A2CAF26AFF31A1 /* OS X */,
 			);
 			name = Frameworks;
@@ -356,6 +397,7 @@
 				7D0000000000000000000002 /* PBXTargetDependency */,
 				7D0000000000000000000004 /* PBXTargetDependency */,
 				1191EA78C0F70C629152DE1A /* PBXTargetDependency */,
+				EE0000000000000000000011 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				3D0000000000000000000001 /* App */,
@@ -531,6 +573,29 @@
 			productReference = CE0000000000000000000001 /* RefineIDTestHost.app */;
 			productType = "com.apple.product-type.application";
 		};
+		EE0000000000000000000040 /* RefineIDSafariExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EE0000000000000000000060 /* Build configuration list for PBXNativeTarget "RefineIDSafariExtension" */;
+			buildPhases = (
+				EE0000000000000000000050 /* Sources */,
+				EE0000000000000000000051 /* Frameworks */,
+				EE0000000000000000000052 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EE0000000000000000000030 /* SafariExtension */,
+			);
+			name = RefineIDSafariExtension;
+			packageProductDependencies = (
+				EE0000000000000000000031 /* CardCore */,
+			);
+			productName = RefineIDSafariExtension;
+			productReference = EE0000000000000000000020 /* RefineIDSafariExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -589,6 +654,7 @@
 				4D0000000000000000000005 /* RefineIDUITests */,
 				806E99C31A2DA667E67A9153 /* RefineIDRappTokenExtension */,
 				CE0000000000000000000020 /* RefineIDTestHost */,
+				EE0000000000000000000040 /* RefineIDSafariExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -630,6 +696,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				CE0000000000000000000008 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EE0000000000000000000052 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EE0000000000000000000004 /* PrivacyInfo.xcprivacy in Resources */,
+				EE0000000000000000000005 /* Sources/SafariExtensionResources/_locales in Resources */,
+				EE0000000000000000000006 /* Sources/SafariExtensionResources/images in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -706,6 +782,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EE0000000000000000000050 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -734,6 +817,15 @@
 			isa = PBXTargetDependency;
 			target = CE0000000000000000000020 /* RefineIDTestHost */;
 			targetProxy = BD0000000000000000000006 /* PBXContainerItemProxy */;
+		};
+		EE0000000000000000000011 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = RefineIDSafariExtension;
+			platformFilters = (
+				macos,
+			);
+			target = EE0000000000000000000040 /* RefineIDSafariExtension */;
+			targetProxy = EE0000000000000000000010 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1971,6 +2063,118 @@
 			};
 			name = Debug;
 		};
+		EE0000000000000000000061 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/SafariExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/SafariExtension-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Web eID";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2026 Petri Koistinen";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.safari-extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		EE0000000000000000000062 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/SafariExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/SafariExtension-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Web eID";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2026 Petri Koistinen";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.safari-extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Profile;
+		};
+		EE0000000000000000000063 /* TestFlight */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/SafariExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/SafariExtension-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Web eID";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2026 Petri Koistinen";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.safari-extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = TestFlight;
+		};
+		EE0000000000000000000064 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/SafariExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/SafariExtension-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "RefineID Web eID";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2026 Petri Koistinen";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fi.refineid.ReFineID.safari-extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -2073,6 +2277,17 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		EE0000000000000000000060 /* Build configuration list for PBXNativeTarget "RefineIDSafariExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EE0000000000000000000061 /* Debug */,
+				EE0000000000000000000062 /* Profile */,
+				EE0000000000000000000063 /* TestFlight */,
+				EE0000000000000000000064 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -2142,6 +2357,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AD0000000000000000000001 /* XCLocalSwiftPackageReference "CardCore" */;
 			productName = RappEngine;
+		};
+		EE0000000000000000000031 /* CardCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD0000000000000000000001 /* XCLocalSwiftPackageReference "CardCore" */;
+			productName = CardCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

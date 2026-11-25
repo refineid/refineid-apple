@@ -37,6 +37,7 @@
     internal func applicationShouldTerminate(_ sender: NSApplication)
       -> NSApplication.TerminateReply
     {
+      WebEidCoordinator.shared.cancelActiveRequest()
       #if REFINEID_REMOTE_CARD
         guard
           let pending = QuitWithdrawal.begin(
@@ -52,6 +53,7 @@
     }
 
     internal func applicationDidFinishLaunching(_: Notification) {
+      WebEidCoordinator.shared.start()
       if LoginItem.isLoginLaunch(NSAppleEventManager.shared().currentAppleEvent) {
         for window in NSApp.windows
         where window.identifier?.rawValue == RefineIDApp.statusWindowID {
