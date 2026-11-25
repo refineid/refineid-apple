@@ -11,7 +11,7 @@
 
   /// Proves that the Virtual ID Card test harness functions completely on macOS
   /// without requiring physical card readers or smart card tokens.
-  @Suite(.serialized)
+  @Suite(.serialized, SharedDemoStateScope())
   internal struct VirtualIDCardMacOSTests {
     @Test
     @MainActor

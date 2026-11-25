@@ -15,7 +15,7 @@
   /// reading order, and enabled states are verified without taking the
   /// workstation's screen.
   @MainActor
-  @Suite(.serialized)
+  @Suite(.serialized, SharedDemoStateScope())
   internal struct MacVoiceOverJourneysTests {
     internal enum WindowMetrics {
       internal static let width: CGFloat = 560

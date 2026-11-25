@@ -9,7 +9,7 @@ import Testing
 /// App-level Estonian eID tests covering three-try retry health, macOS
 /// attempts-bar formatting, and EU Trusted List document-signing anchors.
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, SharedDemoStateScope())
 internal struct EstonianEidAppTests {
   private static let estonianAllowance: UInt8 = 3
   private static let belowFloorAttempts: UInt8 = 2

@@ -44,8 +44,11 @@
     /// The virtual card's default PIN 2 in the activated-reader scenario.
     private static let discardPin2 = "123456"
 
-    /// How many main-actor turns a test waits for the model.
-    private static let settleTurns = 1_000
+    /// Maximum wall-clock seconds to wait for an asynchronous model transition.
+    private static let settleTimeoutSeconds = 5
+
+    /// Milliseconds between checks while waiting for an asynchronous model transition.
+    private static let settlePollMilliseconds = 10
 
     /// Seconds before the folder request covered by a planted collision.
     private static let collisionWindow = 3
@@ -72,13 +75,48 @@
       SignDocumentModel.PlaceAnswer(destination: url, typedName: url.lastPathComponent)
     }
 
-    /// Yields until `condition` holds; answers whether it did.
+    /// Waits up to `settleTimeoutSeconds` until `condition` holds; answers whether it did.
+    ///
+    /// Uses a bounded wall-clock deadline rather than bare `Task.yield()` turns
+    /// because signing hops across the virtual card actor and performs filesystem I/O.
     @MainActor
     private static func settle(until condition: () -> Bool) async -> Bool {
-      for _ in 0..<Self.settleTurns where !condition() {
-        await Task.yield()
+      let deadline = ContinuousClock.now + .seconds(Self.settleTimeoutSeconds)
+      while !condition() {
+        if Task.isCancelled || ContinuousClock.now >= deadline {
+          return condition()
+        }
+        do {
+          try await Task.sleep(for: .milliseconds(Self.settlePollMilliseconds))
+        } catch {
+          return condition()
+        }
       }
-      return condition()
+      return true
+    }
+
+    /// Cancels and drains an in-flight signing task if a test timed out or was cancelled,
+    /// ensuring `await task.value` always joins before tearing down the scene or releasing
+    /// `SharedDemoStateScope`.
+    @MainActor
+    private static func abortSigning(
+      _ task: Task<Void, Never>,
+      scene: Scene,
+      panel: FilePanel
+    ) async {
+      panel.answers.removeAll()
+      task.cancel()
+      scene.signing.cardRemoved()
+      while scene.signing.working {
+        if scene.signing.acknowledgement != nil {
+          scene.signing.acknowledgeFailure()
+        }
+        await Task.yield()
+        if !Task.isCancelled {
+          try? await Task.sleep(for: .milliseconds(Self.settlePollMilliseconds))
+        }
+      }
+      await task.value
     }
 
     @MainActor
@@ -142,12 +180,22 @@
       let panel = FilePanel(answers: [Self.chosen(respelled), Self.chosen(destination)])
 
       let task = Self.signing(scene, panel: panel)
-      #expect(await Self.settle { scene.signing.failure != nil })
+      guard await Self.settle(until: { scene.signing.failure != nil }) else {
+        Issue.record(
+          "Did not observe original-file refusal failure before deadline or cancellation")
+        await Self.abortSigning(task, scene: scene, panel: panel)
+        return
+      }
       #expect(
         scene.signing.failure
           == String(localized: "The signed document cannot replace the original.")
       )
       scene.signing.acknowledgeFailure()
+      guard await Self.settle(until: { !scene.signing.working }) else {
+        Issue.record("Signing retry did not finish after acknowledging original-file refusal")
+        await Self.abortSigning(task, scene: scene, panel: panel)
+        return
+      }
       await task.value
 
       #expect(panel.offered.count == 2)
@@ -169,8 +217,17 @@
       let panel = FilePanel(answers: [Self.chosen(unreachable), Self.chosen(destination)])
 
       let task = Self.signing(scene, panel: panel)
-      #expect(await Self.settle { scene.signing.failure != nil })
+      guard await Self.settle(until: { scene.signing.failure != nil }) else {
+        Issue.record("Did not observe failed-write failure before deadline or cancellation")
+        await Self.abortSigning(task, scene: scene, panel: panel)
+        return
+      }
       scene.signing.acknowledgeFailure()
+      guard await Self.settle(until: { !scene.signing.working }) else {
+        Issue.record("Signing retry did not finish after acknowledging failed write")
+        await Self.abortSigning(task, scene: scene, panel: panel)
+        return
+      }
       await task.value
 
       #expect(panel.offered.count == 2)
