@@ -8150,7 +8150,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dela signeringscertifikat"
+            "value": "Dela underteckningscertifikat"
           }
         }
       }
@@ -8172,7 +8172,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Signera dokument"
+            "value": "Underteckna dokument"
           }
         }
       }
@@ -8304,7 +8304,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sätt in kortet som valts för signering."
+            "value": "Sätt in kortet som valts för underteckning."
           }
         }
       }
