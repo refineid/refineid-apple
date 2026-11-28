@@ -147,6 +147,13 @@ internal final class CredentialRetryHealth: ObservableObject {
 
   // MARK: Functions
 
+  /// Starts a reader retry probe only when no report is loaded and no probe
+  /// is already in flight for the current card.
+  internal func refreshFromReaderIfNeeded() {
+    guard report == nil, readerRefresh == nil else { return }
+    refreshFromReader()
+  }
+
   /// Starts one non-blocking retry probe for the newly inserted reader card.
   ///
   /// A replacement or removal invalidates the generation, so a late answer can

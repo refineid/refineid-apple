@@ -53,8 +53,9 @@
     }
 
     internal func applicationDidFinishLaunching(_: Notification) {
+      let isWebEidLaunch = WebEidCoordinator.isWebEidLaunch
       let isSilentLaunch =
-        WebEidCoordinator.isWebEidLaunch
+        isWebEidLaunch
         || LoginItem.isLoginLaunch(NSAppleEventManager.shared().currentAppleEvent)
       if isSilentLaunch {
         for window in NSApp.windows
@@ -67,7 +68,12 @@
         #endif
       }
       WebEidCoordinator.shared.start()
+      CardIssueAttention.shared.start(suppressInitialCard: isWebEidLaunch)
       LoginItem.registerIfDue()
+    }
+
+    internal func applicationWillTerminate(_: Notification) {
+      CardIssueAttention.shared.stop()
     }
   }
 

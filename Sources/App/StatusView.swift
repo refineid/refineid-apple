@@ -127,7 +127,7 @@
         if canClear { signing.clear() }
       }
       .modifier(safariExtensionObserver)
-      .onDisappear { activation.stop() }
+      .onDisappear(perform: handleDisappear)
       .announcesOutcome(activation.management.failure)
       .announcesOutcome(activation.management.notice)
     }
@@ -227,7 +227,7 @@
         #if FEATURE_CONTACTLESS
           offeringNumber = false
         #endif
-        retryHealth.refreshFromReader()
+        retryHealth.refreshFromReaderIfNeeded()
 
       case .cardWithoutIdentity:
         retryHealth.clear()

@@ -6,16 +6,16 @@
   import Foundation
   import ServiceManagement
 
-  /// The app as a login item: it starts with the session, so a paired
-  /// phone stays reachable without the holder opening anything.
+  /// The app as a login item: it starts silently (windowless) with the
+  /// session so card issues on insertion (PIN 2 setup, PIN recovery,
+  /// activation, or disabled Safari Web eID extension) can open the window
+  /// automatically, and paired phones stay reachable in remote-card builds.
   ///
   /// Registered once, from the first launch a holder makes of the copy
   /// in an Applications folder. macOS announces the addition itself and
   /// lists the app under General > Login Items, where the holder can
   /// remove it. A removal stands: once a registration has existed, the
-  /// app never registers again. Only builds with the remote card
-  /// register: reaching a paired phone is what starting with the
-  /// session is for.
+  /// app never registers again.
   internal enum LoginItem {
     /// What a launch does about the registration.
     internal enum Action: Equatable {
@@ -31,7 +31,8 @@
     private static let registeredKey = "fi.refineid.loginItemRegistered"
 
     /// Whether a test or a debug launch mode drives this process.
-    private static var launchIsAutomated: Bool {
+    @MainActor private static var launchIsAutomated: Bool {
+      if RefineIDApp.hostsUnitTests { return true }
       #if DEBUG
         return DebugLaunchModes.selected() != nil || TestCredentialEnvironment.isTestMode
       #else
@@ -103,40 +104,38 @@
     /// Registers the app when this launch calls for it.
     ///
     /// Service Management answers over XPC, so this leaves the main
-    /// actor before asking. Without the remote card there is nothing
-    /// to reach at login, so the check and the registration both go.
+    /// actor before asking.
+    @MainActor
     internal static func registerIfDue() {
-      #if REFINEID_REMOTE_CARD
-        let automated = Self.launchIsAutomated
-        Task.detached(priority: .utility) {
-          let defaults = UserDefaults.standard
-          let service = SMAppService.mainApp
-          let action = Self.action(
-            automated: automated,
-            installed: Self.runsFromApplicationsFolder,
-            registeredBefore: defaults.bool(forKey: Self.registeredKey),
-            status: service.status
-          )
-          switch action {
-          case .register:
-            do {
-              try service.register()
-              defaults.set(true, forKey: Self.registeredKey)
-            } catch {
-              #if DEBUG
-                DevErrorLog.report(
-                  "login item: registration failed: \(DevErrorLog.reason(error))", source: .app)
-              #endif
-            }
-
-          case .recordRegistration:
+      let automated = Self.launchIsAutomated
+      Task.detached(priority: .utility) {
+        let defaults = UserDefaults.standard
+        let service = SMAppService.mainApp
+        let action = Self.action(
+          automated: automated,
+          installed: Self.runsFromApplicationsFolder,
+          registeredBefore: defaults.bool(forKey: Self.registeredKey),
+          status: service.status
+        )
+        switch action {
+        case .register:
+          do {
+            try service.register()
             defaults.set(true, forKey: Self.registeredKey)
-
-          case .nothing:
-            break
+          } catch {
+            #if DEBUG
+              DevErrorLog.report(
+                "login item: registration failed: \(DevErrorLog.reason(error))", source: .app)
+            #endif
           }
+
+        case .recordRegistration:
+          defaults.set(true, forKey: Self.registeredKey)
+
+        case .nothing:
+          break
         }
-      #endif
+      }
     }
   }
 
