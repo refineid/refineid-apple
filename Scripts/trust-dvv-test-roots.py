@@ -92,8 +92,9 @@ def install() -> None:
             url = f"{CA_BASE}/{file_stem}.crt"
             try:
                 # CA_BASE is an http literal and the file stems are module
-                # constants; the certificate must match the SHA-256 listed on
-                # the https PAGE_URL page, so a substituted file fails.
+                # constants; the bytes are checked before installation against
+                # the SHA-256 the https PAGE_URL page lists, so tampering on
+                # the http fetch fails while that page is honest.
                 # nosemgrep: dynamic-urllib-use-detected
                 with urllib.request.urlopen(url) as resp:
                     cert_bytes = resp.read()

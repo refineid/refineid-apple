@@ -6,8 +6,9 @@
 # generate at run time; the CPace domain-separation names the protocol
 # documents quote; the field names of the Noise test vectors; and the card
 # numbering case the signing path compares against a stored identity.
-# The history holds all of them, so each entry names the narrowest part that
-# identifies it: a path, a line pattern, or the matched value itself.
+# The history holds all of them, so each entry combines the narrowest
+# constraints that identify it: the rule, the path, and a line or value
+# pattern.
 
 title = "refineid-apple"
 
