@@ -139,6 +139,10 @@ def main() -> None:
                 print(f"dss-gate: fetching {coordinates}")
                 part_path = cache_dir / f"{artifact}-{version}.jar.part"
                 try:
+                    # The coordinates come from the repository's digest lock
+                    # file, and the bytes are checked against their SHA-256
+                    # before the jar is used.
+                    # nosemgrep: dynamic-urllib-use-detected
                     urllib.request.urlretrieve(url, part_path)
                 except Exception as e:
                     part_path.unlink(missing_ok=True)

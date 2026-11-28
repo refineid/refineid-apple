@@ -4,8 +4,10 @@
 # secret: the published RAPP conformance vectors, whose fields are example
 # values of the protocol; the Swift type annotations of keys the tests
 # generate at run time; the CPace domain-separation names the protocol
-# documents quote; and the field names of the Noise test vectors. The
-# history holds all of them, so each is matched by its line, not its file.
+# documents quote; the field names of the Noise test vectors; and the card
+# numbering comparison the signing path makes against a stored identity.
+# The history holds all of them, so each is matched by its line, not its
+# file.
 
 title = "refineid-apple"
 
@@ -29,6 +31,13 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^Documentation/protocol/.*\.md$''']
 regexes = ['''CPaceRistretto255(_ISK)?''']
+
+[[allowlists]]
+description = "card numbering comparison against a stored identity"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^Sources/TokenExtension/.*\.swift$''']
+regexes = ['''token\.cardNumbering == \.[A-Za-z0-9_]+$''']
 
 [[allowlists]]
 description = "field names of the Noise test vectors"
