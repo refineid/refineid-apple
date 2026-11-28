@@ -31,6 +31,9 @@ extension DerTimeTests {
       notBefore: "260101000000Z",
       notAfter: "270101000000Z"
     )
+    // JWT-shaped signing input the signature refuses on its certificate, not a
+    // token that grants anything.
+    // nosemgrep: detected-jwt-token
     let signingInput = Data("eyJhbGciOiJFUzI1NiJ9.eyJ2ZXJzaW9uIjoiMS4zIn0".utf8)
     let signature = try material.key.signature(for: signingInput).rawRepresentation
     let insideWindow = Date(timeIntervalSince1970: Self.sampleInstant)

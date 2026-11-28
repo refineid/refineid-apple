@@ -20,6 +20,9 @@
     return INITIAL_ACTIONS.has(action);
   }
 
+  // The handler returns unless isInitialWebEidMessage accepts the event,
+  // which checks event.source, event.origin and the action allowlist.
+  // nosemgrep: insufficient-postmessage-origin-validation
   window.addEventListener("message", async (event) => {
     if (!isInitialWebEidMessage(event)) return;
 
