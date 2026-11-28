@@ -198,6 +198,9 @@
         #endif
         finishSuccessfully()
       } catch {
+        if case DocumentSigner.Failure.card(.pin2ChangeRequired) = error {
+          CredentialRetryHealth.shared.markPin2RequiresChangeBeforeSigning()
+        }
         showFailure(DocumentSigningMessage.message(for: error))
       }
     }
