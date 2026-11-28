@@ -37,7 +37,7 @@ description = "card numbering comparison against a stored identity"
 condition = "AND"
 regexTarget = "line"
 paths = ['''^Sources/TokenExtension/.*\.swift$''']
-regexes = ['''token\.cardNumbering == \.''']
+regexes = ['''token\.cardNumbering == \.[A-Za-z0-9_]+$''']
 
 [[allowlists]]
 description = "field names of the Noise test vectors"
