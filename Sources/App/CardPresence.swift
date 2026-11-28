@@ -20,10 +20,17 @@ internal final class CardPresence: ObservableObject {
   /// Whether any slot reports a card, responsive or not.
   @Published internal private(set) var isCardPresent = false
 
+  /// Monotonic counter incremented each time a card enters a reader slot,
+  /// allowing background observers to detect fast card swaps reliably.
+  @Published internal private(set) var readerCardInsertionGeneration: UInt64 = 0
+
   /// Whether a card is present in an external reader rather than the
   /// iPhone's temporary NFC slot.
   @Published internal private(set) var isReaderCardPresent = false {
     didSet {
+      if isReaderCardPresent, !oldValue {
+        readerCardInsertionGeneration &+= 1
+      }
       #if REFINEID_REMOTE_CARD
         RemoteUseAvailability.readerCardChanged(present: isReaderCardPresent)
       #endif

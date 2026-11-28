@@ -41,6 +41,11 @@
 
     internal var activeCancelled = false
 
+    /// Whether a Web eID prompt or card operation is currently in progress.
+    internal var hasActiveRequest: Bool {
+      activeNonce != nil
+    }
+
     private let store = WebEidBridgeStore.shared
     private var notificationToken: Int32 = Constants.uninitializedToken
     private var activeNonce: UUID?
@@ -183,6 +188,7 @@
           }
         deliver(response, expiresAt: expiresAt)
       }
+      CardIssueAttention.shared.noteWebEidRequestEnded()
       drainPendingRequests()
     }
   }

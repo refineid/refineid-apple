@@ -138,6 +138,11 @@
         identityRow
       }
     }
+
+    internal func handleDisappear() {
+      activation.stop()
+      CardIssueAttention.shared.noteStatusWindowClosed()
+    }
   }
 
 #endif
