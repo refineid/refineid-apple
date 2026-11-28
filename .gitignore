@@ -25,7 +25,8 @@ playground.xcworkspace
 targeted.json
 timeline.xctimeline
 xcuserdata/
-.agents/
+.agents/*
+!.agents/skills/
 Metadata/slack/
 __pycache__/
 *.pyc
