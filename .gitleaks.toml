@@ -5,9 +5,10 @@
 # values of the protocol; the Swift type annotations of keys the tests
 # generate at run time; the CPace domain-separation names the protocol
 # documents quote; the field names of the Noise test vectors; and the card
-# numbering comparison the signing path makes against a stored identity.
-# The history holds all of them, so each is matched by its line, not its
-# file.
+# numbering case the signing path compares against a stored identity.
+# The history holds all of them, so each entry combines the narrowest
+# constraints that identify it: the rule, the path, and a line or value
+# pattern.
 
 title = "refineid-apple"
 
@@ -33,11 +34,12 @@ paths = ['''^Documentation/protocol/.*\.md$''']
 regexes = ['''CPaceRistretto255(_ISK)?''']
 
 [[allowlists]]
-description = "card numbering comparison against a stored identity"
+description = "card numbering case compared against a stored identity"
+targetRules = ["generic-api-key"]
 condition = "AND"
-regexTarget = "line"
-paths = ['''^Sources/TokenExtension/.*\.swift$''']
-regexes = ['''token\.cardNumbering == \.[A-Za-z0-9_]+$''']
+regexTarget = "secret"
+paths = ['''^Sources/TokenExtension/FieldSignature\.swift$''']
+regexes = ['''^\.estonian2018$''']
 
 [[allowlists]]
 description = "field names of the Noise test vectors"
