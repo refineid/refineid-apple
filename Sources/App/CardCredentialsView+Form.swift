@@ -62,7 +62,7 @@ extension CardCredentialsView {
       #if FEATURE_DOCUMENT_VERIFICATION
         signingSection
       #else
-        if signingAvailable {
+        if signingAvailable || signingBlockedByInitialPin2 {
           signingSection
         }
       #endif

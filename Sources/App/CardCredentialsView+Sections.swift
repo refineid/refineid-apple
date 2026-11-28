@@ -40,7 +40,11 @@ extension CardCredentialsView {
         #if FEATURE_DOCUMENT_VERIFICATION
           verifyRow
         #endif
-        if signingAvailable {
+        if signingBlockedByInitialPin2 {
+          Text("Change PIN 2 so you can sign documents.")
+            .foregroundStyle(.orange)
+            .accessibilityIdentifier("pin2ChangeRequiredNotice")
+        } else if signingAvailable {
           signRow
         }
       } header: {
@@ -58,7 +62,8 @@ extension CardCredentialsView {
           CredentialRetryHealthKey(
             level: retryHealth.level,
             systemName: "key.2.on.ring.fill",
-            routeAvailable: managementAvailable)
+            routeAvailable: managementAvailable,
+            pin2RequiresChange: retryHealth.pin2RequiresChangeBeforeSigning)
         } trailing: {
           DisclosureChevron()
         }

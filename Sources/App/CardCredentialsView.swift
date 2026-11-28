@@ -269,9 +269,24 @@ internal struct CardCredentialsView: View {
   }
 
   #if os(iOS)
+    /// Whether local card signing is blocked until EstEID 2025's initial
+    /// PIN 2 is changed (`GED24035_015` sections 3.1, 7.8.1 and 8.3.4).
+    internal var signingBlockedByInitialPin2: Bool {
+      Self.isSigningBlockedByInitialPin2(
+        hasLocalIdentity: hasIdentity || hasReaderIdentity,
+        usesRemoteSigning: DocumentSigner.usesRappSigning,
+        pin2RequiresChangeBeforeSigning: retryHealth.pin2RequiresChangeBeforeSigning
+      )
+    }
+
     /// Whether a qualified signature can start right now.
     internal var signingAvailable: Bool {
-      hasIdentity || hasReaderIdentity || hasRemoteSigningIdentity
+      Self.isSigningAvailable(
+        hasLocalIdentity: hasIdentity || hasReaderIdentity,
+        hasRemoteSigningIdentity: hasRemoteSigningIdentity,
+        usesRemoteSigning: DocumentSigner.usesRappSigning,
+        pin2RequiresChangeBeforeSigning: retryHealth.pin2RequiresChangeBeforeSigning
+      )
     }
 
     /// Whether a paired phone has already named a person to sign as.
@@ -348,6 +363,31 @@ internal struct CardCredentialsView: View {
     ) {
       self.readerModel = readerModel
       self.remoteModel = remoteModel
+    }
+
+    // MARK: Static Functions
+
+    internal static func isSigningBlockedByInitialPin2(
+      hasLocalIdentity: Bool,
+      usesRemoteSigning: Bool,
+      pin2RequiresChangeBeforeSigning: Bool
+    ) -> Bool {
+      !usesRemoteSigning && hasLocalIdentity && pin2RequiresChangeBeforeSigning
+    }
+
+    internal static func isSigningAvailable(
+      hasLocalIdentity: Bool,
+      hasRemoteSigningIdentity: Bool,
+      usesRemoteSigning: Bool,
+      pin2RequiresChangeBeforeSigning: Bool
+    ) -> Bool {
+      if usesRemoteSigning {
+        return hasRemoteSigningIdentity
+      }
+      if hasLocalIdentity {
+        return !pin2RequiresChangeBeforeSigning
+      }
+      return hasRemoteSigningIdentity
     }
   #endif
 }

@@ -131,6 +131,18 @@
         && OrganizationCardStore.kind() == .personal
     }
 
+    internal static func shouldMarkLocalInitialPin2(
+      usesRappSigning: Bool,
+      error: Error
+    ) -> Bool {
+      guard !usesRappSigning,
+        case DocumentSigner.Failure.card(.pin2ChangeRequired) = error
+      else {
+        return false
+      }
+      return true
+    }
+
     private func importResult(_ result: Result<[URL], Error>) {
       do {
         let urls = try result.get()
@@ -198,6 +210,12 @@
         #endif
         finishSuccessfully()
       } catch {
+        if Self.shouldMarkLocalInitialPin2(
+          usesRappSigning: !requiresRequesterPIN2,
+          error: error
+        ) {
+          CredentialRetryHealth.shared.markPin2RequiresChangeBeforeSigning()
+        }
         showFailure(DocumentSigningMessage.message(for: error))
       }
     }

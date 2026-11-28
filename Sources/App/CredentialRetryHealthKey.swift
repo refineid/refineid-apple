@@ -30,36 +30,54 @@ internal struct CredentialRetryHealthKey: View {
   /// while a closed route greys out like its row.
   internal let routeAvailable: Bool
 
+  /// Whether EstEID 2025 enforces changing its initial PIN 2 before
+  /// qualified signing is allowed.
+  internal let pin2RequiresChange: Bool
+
   @Environment(\.accessibilityReduceMotion)
   private var reduceMotion
   @State private var animationTrigger = false
 
   internal var body: some View {
     ZStack(alignment: .bottomTrailing) {
-      if let shown = displayedLevel {
-        Image(systemName: systemName)
-          .font(.system(size: PersonRowLabel.iconPointSize))
-          .symbolRenderingMode(.monochrome)
-          .replacingSymbol()
-          .foregroundStyle(shown.color)
-        statusBadge(shown)
-      } else {
-        Image(systemName: systemName)
-          .font(.system(size: PersonRowLabel.iconPointSize))
-          .symbolRenderingMode(.monochrome)
-          .replacingSymbol()
-          .foregroundStyle(
-            routeAvailable
-              ? AnyShapeStyle(Color.green)
-              : AnyShapeStyle(Color.secondary))
-      }
+      Image(systemName: systemName)
+        .font(.system(size: PersonRowLabel.iconPointSize))
+        .symbolRenderingMode(.monochrome)
+        .replacingSymbol()
+        .foregroundStyle(keyStyle)
+      overlayBadge
     }
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(Text("Change or Reset PINs"))
-    .accessibilityValue(displayedLevel?.accessibilityValue ?? "")
+    .accessibilityValue(
+      Self.accessibilityValueText(
+        level: displayedLevel,
+        showsPin2ChangeWarning: showsPin2ChangeWarning
+      )
+    )
     .onAppear { animateIfNeeded(displayedLevel) }
     .onValueChange(of: displayedLevel) { newLevel in
       animateIfNeeded(newLevel)
+    }
+  }
+
+  private var keyStyle: AnyShapeStyle {
+    if showsPin2ChangeWarning {
+      return AnyShapeStyle(Color.orange)
+    }
+    if let shown = displayedLevel {
+      return AnyShapeStyle(shown.color)
+    }
+    return routeAvailable
+      ? AnyShapeStyle(Color.green)
+      : AnyShapeStyle(Color.secondary)
+  }
+
+  @ViewBuilder private var overlayBadge: some View {
+    if showsPin2ChangeWarning {
+      badge(symbol: CredentialRetryHealth.Level.warning.badge, color: .orange)
+    } else if let shown = displayedLevel {
+      statusBadge(shown)
     }
   }
 
@@ -71,14 +89,62 @@ internal struct CredentialRetryHealthKey: View {
     routeAvailable ? level : nil
   }
 
+  private var showsPin2ChangeWarning: Bool {
+    Self.showsPin2ChangeWarning(
+      level: level,
+      routeAvailable: routeAvailable,
+      pin2RequiresChange: pin2RequiresChange
+    )
+  }
+
   internal init(
     level: CredentialRetryHealth.Level?,
     systemName: String,
     routeAvailable: Bool
   ) {
+    self.init(
+      level: level,
+      systemName: systemName,
+      routeAvailable: routeAvailable,
+      pin2RequiresChange: false
+    )
+  }
+
+  internal init(
+    level: CredentialRetryHealth.Level?,
+    systemName: String,
+    routeAvailable: Bool,
+    pin2RequiresChange: Bool
+  ) {
     self.level = level
     self.systemName = systemName
     self.routeAvailable = routeAvailable
+    self.pin2RequiresChange = pin2RequiresChange
+  }
+
+  /// Orange initial-PIN-2 attention shows on an open route whenever
+  /// PIN 2 still needs changing and no credential is in critical red
+  /// recovery (red takes precedence, matching macOS `PinCodesButton`).
+  internal static func showsPin2ChangeWarning(
+    level: CredentialRetryHealth.Level?,
+    routeAvailable: Bool,
+    pin2RequiresChange: Bool
+  ) -> Bool {
+    routeAvailable && pin2RequiresChange && level != .critical
+  }
+
+  internal static func accessibilityValueText(
+    level: CredentialRetryHealth.Level?,
+    showsPin2ChangeWarning: Bool
+  ) -> String {
+    if showsPin2ChangeWarning {
+      let pin2Notice = String(localized: "Change PIN 2 so you can sign documents.")
+      if let level, level == .warning {
+        return "\(level.accessibilityValue). \(pin2Notice)"
+      }
+      return pin2Notice
+    }
+    return level?.accessibilityValue ?? ""
   }
 
   @ViewBuilder
@@ -87,23 +153,23 @@ internal struct CredentialRetryHealthKey: View {
   ) -> some View {
     switch level {
     case .pristine:
-      badge(level)
+      badge(symbol: level.badge, color: level.color)
 
     case .warning:
-      badge(level)
+      badge(symbol: level.badge, color: level.color)
         .pulsingSymbol(value: animationTrigger)
 
     case .critical:
-      badge(level)
+      badge(symbol: level.badge, color: level.color)
         .bouncingSymbol(value: animationTrigger)
     }
   }
 
-  private func badge(_ level: CredentialRetryHealth.Level) -> some View {
-    Image(systemName: level.badge)
+  private func badge(symbol: String, color: Color) -> some View {
+    Image(systemName: symbol)
       .accessibilityHidden(true)
       .font(.system(size: Layout.badgeGlyphSize, weight: .bold))
-      .foregroundStyle(level.color)
+      .foregroundStyle(color)
       .background(.background, in: Circle())
   }
 
