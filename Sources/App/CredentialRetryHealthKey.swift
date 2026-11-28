@@ -40,39 +40,17 @@ internal struct CredentialRetryHealthKey: View {
 
   internal var body: some View {
     ZStack(alignment: .bottomTrailing) {
-      if showsPin2ChangeWarning {
-        Image(systemName: systemName)
-          .font(.system(size: PersonRowLabel.iconPointSize))
-          .symbolRenderingMode(.monochrome)
-          .replacingSymbol()
-          .foregroundStyle(Color.orange)
-        Image(systemName: CredentialRetryHealth.Level.warning.badge)
-          .accessibilityHidden(true)
-          .font(.system(size: Layout.badgeGlyphSize, weight: .bold))
-          .foregroundStyle(Color.orange)
-          .background(.background, in: Circle())
-      } else if let shown = displayedLevel {
-        Image(systemName: systemName)
-          .font(.system(size: PersonRowLabel.iconPointSize))
-          .symbolRenderingMode(.monochrome)
-          .replacingSymbol()
-          .foregroundStyle(shown.color)
-        statusBadge(shown)
-      } else {
-        Image(systemName: systemName)
-          .font(.system(size: PersonRowLabel.iconPointSize))
-          .symbolRenderingMode(.monochrome)
-          .replacingSymbol()
-          .foregroundStyle(
-            routeAvailable
-              ? AnyShapeStyle(Color.green)
-              : AnyShapeStyle(Color.secondary))
-      }
+      Image(systemName: systemName)
+        .font(.system(size: PersonRowLabel.iconPointSize))
+        .symbolRenderingMode(.monochrome)
+        .replacingSymbol()
+        .foregroundStyle(keyStyle)
+      overlayBadge
     }
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(Text("Change or Reset PINs"))
     .accessibilityValue(
-      Self.accessibilityValue(
+      Self.accessibilityValueText(
         level: displayedLevel,
         showsPin2ChangeWarning: showsPin2ChangeWarning
       )
@@ -80,6 +58,26 @@ internal struct CredentialRetryHealthKey: View {
     .onAppear { animateIfNeeded(displayedLevel) }
     .onValueChange(of: displayedLevel) { newLevel in
       animateIfNeeded(newLevel)
+    }
+  }
+
+  private var keyStyle: AnyShapeStyle {
+    if showsPin2ChangeWarning {
+      return AnyShapeStyle(Color.orange)
+    }
+    if let shown = displayedLevel {
+      return AnyShapeStyle(shown.color)
+    }
+    return routeAvailable
+      ? AnyShapeStyle(Color.green)
+      : AnyShapeStyle(Color.secondary)
+  }
+
+  @ViewBuilder private var overlayBadge: some View {
+    if showsPin2ChangeWarning {
+      badge(symbol: CredentialRetryHealth.Level.warning.badge, color: .orange)
+    } else if let shown = displayedLevel {
+      statusBadge(shown)
     }
   }
 
@@ -135,12 +133,16 @@ internal struct CredentialRetryHealthKey: View {
     routeAvailable && pin2RequiresChange && level != .critical
   }
 
-  internal static func accessibilityValue(
+  internal static func accessibilityValueText(
     level: CredentialRetryHealth.Level?,
     showsPin2ChangeWarning: Bool
   ) -> String {
     if showsPin2ChangeWarning {
-      return String(localized: "Change PIN 2 so you can sign documents.")
+      let pin2Notice = String(localized: "Change PIN 2 so you can sign documents.")
+      if let level, level == .warning {
+        return "\(level.accessibilityValue). \(pin2Notice)"
+      }
+      return pin2Notice
     }
     return level?.accessibilityValue ?? ""
   }
@@ -151,23 +153,23 @@ internal struct CredentialRetryHealthKey: View {
   ) -> some View {
     switch level {
     case .pristine:
-      badge(level)
+      badge(symbol: level.badge, color: level.color)
 
     case .warning:
-      badge(level)
+      badge(symbol: level.badge, color: level.color)
         .pulsingSymbol(value: animationTrigger)
 
     case .critical:
-      badge(level)
+      badge(symbol: level.badge, color: level.color)
         .bouncingSymbol(value: animationTrigger)
     }
   }
 
-  private func badge(_ level: CredentialRetryHealth.Level) -> some View {
-    Image(systemName: level.badge)
+  private func badge(symbol: String, color: Color) -> some View {
+    Image(systemName: symbol)
       .accessibilityHidden(true)
       .font(.system(size: Layout.badgeGlyphSize, weight: .bold))
-      .foregroundStyle(level.color)
+      .foregroundStyle(color)
       .background(.background, in: Circle())
   }
 

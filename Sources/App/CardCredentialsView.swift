@@ -274,7 +274,7 @@ internal struct CardCredentialsView: View {
     internal var signingBlockedByInitialPin2: Bool {
       Self.isSigningBlockedByInitialPin2(
         hasLocalIdentity: hasIdentity || hasReaderIdentity,
-        hasRemoteSigningIdentity: hasRemoteSigningIdentity,
+        usesRemoteSigning: DocumentSigner.usesRappSigning,
         pin2RequiresChangeBeforeSigning: retryHealth.pin2RequiresChangeBeforeSigning
       )
     }
@@ -284,6 +284,7 @@ internal struct CardCredentialsView: View {
       Self.isSigningAvailable(
         hasLocalIdentity: hasIdentity || hasReaderIdentity,
         hasRemoteSigningIdentity: hasRemoteSigningIdentity,
+        usesRemoteSigning: DocumentSigner.usesRappSigning,
         pin2RequiresChangeBeforeSigning: retryHealth.pin2RequiresChangeBeforeSigning
       )
     }
@@ -368,18 +369,25 @@ internal struct CardCredentialsView: View {
 
     internal static func isSigningBlockedByInitialPin2(
       hasLocalIdentity: Bool,
-      hasRemoteSigningIdentity: Bool,
+      usesRemoteSigning: Bool,
       pin2RequiresChangeBeforeSigning: Bool
     ) -> Bool {
-      !hasRemoteSigningIdentity && hasLocalIdentity && pin2RequiresChangeBeforeSigning
+      !usesRemoteSigning && hasLocalIdentity && pin2RequiresChangeBeforeSigning
     }
 
     internal static func isSigningAvailable(
       hasLocalIdentity: Bool,
       hasRemoteSigningIdentity: Bool,
+      usesRemoteSigning: Bool,
       pin2RequiresChangeBeforeSigning: Bool
     ) -> Bool {
-      hasRemoteSigningIdentity || (hasLocalIdentity && !pin2RequiresChangeBeforeSigning)
+      if usesRemoteSigning {
+        return hasRemoteSigningIdentity
+      }
+      if hasLocalIdentity {
+        return !pin2RequiresChangeBeforeSigning
+      }
+      return hasRemoteSigningIdentity
     }
   #endif
 }
