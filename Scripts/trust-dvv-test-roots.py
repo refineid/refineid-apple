@@ -60,7 +60,7 @@ def sha256_of_bytes(data: bytes) -> str:
 def fetch_page_text() -> str:
     req = urllib.request.Request(PAGE_URL, headers={"User-Agent": "curl/8.7.1"})
     try:
-        # PAGE_URL is a module constant.
+        # req is built from the https PAGE_URL module constant.
         # nosemgrep: dynamic-urllib-use-detected
         with urllib.request.urlopen(req) as response:
             html_content = response.read().decode("utf-8", errors="replace")
@@ -91,8 +91,9 @@ def install() -> None:
 
             url = f"{CA_BASE}/{file_stem}.crt"
             try:
-                # CA_BASE and the file stems are module constants, and the
-                # bytes are checked against DVV's published SHA-256.
+                # CA_BASE is an http literal and the file stems are module
+                # constants; the certificate must match the SHA-256 listed on
+                # the https PAGE_URL page, so a substituted file fails.
                 # nosemgrep: dynamic-urllib-use-detected
                 with urllib.request.urlopen(url) as resp:
                     cert_bytes = resp.read()
